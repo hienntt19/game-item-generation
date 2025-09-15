@@ -1,0 +1,17 @@
+accelerate>=1.5.2
+bitsandbytes>=0.47.0
+controlnet-aux>=0.0.10
+datasets>=3.6.0
+diffusers>=0.32.2
+python-dotenv>=0.9.9
+huggingface-hub[hf-xet]>=0.31.1
+optuna>=4.3.0
+peft>=0.14.0
+safetensors>=0.5.3
+torch>=2.5.1
+torch-ema>=0.3
+torchaudio>=2.5.1
+torchvision>=0.20.1
+transformers>=4.51.3
+wandb>=0.19.9
+xformers>=0.0.29.post1
