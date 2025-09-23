@@ -12,6 +12,14 @@ from fastapi import Depends, FastAPI, HTTPException, status, Form, Response, Upl
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from loguru import logger
 from starlette.responses import StreamingResponse
+from pydantic import BaseModel
+
+class InferenceRequest(BaseModel):
+    prompt: str
+    negative_prompt: str = ""
+    num_inference_steps: int = 50
+    guidance_scale: float = 7.5
+    seed: int = 50
 
 app = FastAPI()
 
@@ -65,26 +73,17 @@ logger.info("Load lora weights successfully")
 
 
 @app.post("/inference")
-async def inference(
-    prompt: str = Form(""), 
-    negative_prompt: str = Form(""),
-    num_inference_steps: int = Form(50),
-    guidance_scale: float = Form(7.5),
-    seed: int = Form(50)
-):
-    generator = torch.Generator(device=device).manual_seed(seed)
-    logger.info(f"Generating image with seed: {seed}")
-
-    if not prompt:
-        prompt = " "
+async def inference(request: InferenceRequest):
+    generator = torch.Generator(device=device).manual_seed(request.seed)
+    logger.info(f"Generating image with seed: {request.seed}")
 
     try:
         with torch.inference_mode():
             image = pipe(
-                prompt=prompt,
-                negative_prompt=negative_prompt,
-                num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale,
+                prompt=request.prompt,
+                negative_prompt=request.negative_prompt,
+                num_inference_steps=request.num_inference_steps,
+                guidance_scale=request.guidance_scale,
                 generator=generator,
                 cross_attention_kwargs={"scale": 1.0}
             ).images[0]
@@ -100,31 +99,40 @@ async def inference(
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
-@app.post("/inference-scrible")
-async def inference_scrible(
-    prompt: str = Form(""), 
+def get_scrible_form(
+    prompt: str = Form(""),
     negative_prompt: str = Form(""),
-    scrible_image: UploadFile = File(...),
     num_inference_steps: int = Form(50),
     guidance_scale: float = Form(7.5),
     seed: int = Form(50)
+) -> InferenceRequest:
+    return InferenceRequest(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        num_inference_steps=num_inference_steps,
+        guidance_scale=guidance_scale,
+        seed=seed
+    )
+    
+
+@app.post("/inference-scrible")
+async def inference_scrible(
+    scrible_image: UploadFile = File(...),
+    form_data: InferenceRequest = Depends(get_scrible_form)
 ):
     scrible_image = Image.open(io.BytesIO(await scrible_image.read())).convert("RGB")
 
-    generator = torch.Generator(device=device).manual_seed(seed)
-    logger.info(f"Generating image with seed: {seed}")
-
-    if not prompt:
-        prompt = " "
+    generator = torch.Generator(device=device).manual_seed(form_data.seed)
+    logger.info(f"Generating image with seed: {form_data.seed}")
 
     try:
         with torch.inference_mode():
             image = pipe_controlnet(
-                prompt=prompt, 
-                negative_prompt=negative_prompt,
+                prompt=form_data.prompt, 
+                negative_prompt=form_data.negative_prompt,
                 image=scrible_image,
-                num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale,
+                num_inference_steps=form_data.num_inference_steps,
+                guidance_scale=form_data.guidance_scale,
                 generator=generator,
                 cross_attention_kwargs={"scale": 1},
                 # controlnet_conditioning_scale=1

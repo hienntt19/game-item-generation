@@ -39,8 +39,8 @@ def main():
     print("Lora loaded with fixed keys")
     
 
-    prompt = "tsuki_advtr, a brown long bread, white background, thick outlines, pastel color, cartoon style, hand-drawn, 2D icon, game item, 2D game style, minimalist"
-    negative_prompt = "pattern, multiple, many, repeating, tiling, background objects, floating objects, confetti, debris, clones, crowd"
+    prompt = "tsuki_advtr, a samoyed dog smiling, white background, thick outlines, pastel color, cartoon style, hand-drawn, 2D icon, game item, 2D game style, minimalist"
+    # negative_prompt = "pattern, multiple, many, repeating, tiling, background objects, floating objects, confetti, debris, clones, crowd"
     
     print(f"Generating image...")
     print(f"Prompt: {prompt}")
@@ -48,14 +48,14 @@ def main():
     
     image = pipe(
         prompt=prompt,
-        negative_prompt=negative_prompt,
+        # negative_prompt=negative_prompt,
         num_inference_steps=50,
         guidance_scale=7.5,
         generator=generator,
         cross_attention_kwargs={"scale": 1.0}
     ).images[0]
     
-    output_path = os.path.join(IMAGES_PATH, "test_bagel.png")
+    output_path = os.path.join(IMAGES_PATH, "test_infer.png")
     image.save(output_path)
     
     print(f"Image saved to: {output_path}")
