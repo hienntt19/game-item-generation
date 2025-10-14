@@ -15,3 +15,9 @@ wheels/
 wandb
 models
 images
+
+gcs_key.json
+
+images/
+models/
+wandb/
