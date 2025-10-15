@@ -19,11 +19,13 @@ QUEUE_NAME = "image_generation_queue"
 
 API_GATEWAY_URL = os.getenv("API_GATEWAY_URL")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcs_key.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcs_key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/gcs_key.json"
 
 LORA_PATH = os.path.join("models", "lora-tsuki-epoch-20", "lora_adapter.safetensors")
 IMAGES_PATH = "images"
-MODEL_ID = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+# MODEL_ID = "stable-diffusion-v1-5/stable-diffusion-v1-5"
+MODEL_ID = "models/stable-diffusion-v1-5"
 
 os.makedirs(IMAGES_PATH, exist_ok=True)
 
@@ -71,29 +73,34 @@ def upload_to_gcs(source_file_path, request_id):
 
 
 def load_model():
-    if not os.path.exists(LORA_PATH):
-        print(f"Lora file not found: {LORA_PATH}")
-        return
-    
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if device == "cuda" else torch.float32
     
     print(f"Loading pipeline on {device}...")
-    scheduler = DDIMScheduler.from_pretrained(MODEL_ID, subfolder="scheduler")
     
     pipe = StableDiffusionPipeline.from_pretrained(
         MODEL_ID,
-        scheduler=scheduler,
         torch_dtype=dtype,
         safety_checker=None,
         requires_safety_checker=False
-    ).to(device)
+    )
+    
+    print("Loading and setting DDIMScheduler...")
+    scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+    pipe.scheduler = scheduler
 
-    print("Loading lora weights...")
+    pipe.to(device)
+
+    print(f"Loading lora weights from: {LORA_PATH}")
+    if not os.path.exists(LORA_PATH):
+        print(f"CRITICAL: Lora file not found at {LORA_PATH} inside the container!")
+        return
+        
     pipe.load_lora_weights(LORA_PATH)
-    print("Lora loaded with fixed keys")
+    print("Lora loaded successfully.")
     
     return pipe, device
+
 
 def generate_and_upload_image(pipe, device, request_id, params):
     prompt = params.get("prompt")

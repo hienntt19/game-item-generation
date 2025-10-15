@@ -1,0 +1,5 @@
+export RABBITMQ_HOST="34.124.130.9"
+export RABBITMQ_DEFAULT_USER="hienntt19"
+export RABBITMQ_DEFAULT_PASS="nqqPr7MmnEFWVPpW"
+export API_GATEWAY_URL="http://35.247.180.140.nip.io"
+export GCS_BUCKET_NAME="gig-images-storage"
