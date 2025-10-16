@@ -13,18 +13,11 @@ wheels/
 .env
 
 # folders
-wandb
-models
-images
-
 gcs_key.json
-
 models/*
 !models/.gitkeep
-
 wandb/*
 tests/*
-
 api.py
 inference_controlnet.py
 new_requirements.txt
