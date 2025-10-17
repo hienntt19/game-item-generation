@@ -19,8 +19,8 @@ QUEUE_NAME = "image_generation_queue"
 
 API_GATEWAY_URL = os.getenv("API_GATEWAY_URL")
 GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME")
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcs_key.json"
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/gcs_key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcs-key.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/app/gcs-key.json"
 
 LORA_PATH = os.path.join("models", "lora-tsuki-epoch-20", "lora_adapter.safetensors")
 IMAGES_PATH = "images"
@@ -155,7 +155,7 @@ def on_message_callback(ch, method, properties, body, pipe, device):
         image_url = generate_and_upload_image(pipe, device, request_id, params)
         
         if image_url:
-            update_status(request_id, "completed", image_url=image_url)
+            update_status(request_id, "Completed", image_url=image_url)
         else:
             raise RuntimeError("Failed to generate or upload image.")
         ch.basic_ack(delivery_tag=method.delivery_tag)

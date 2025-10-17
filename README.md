@@ -1,5 +1,16 @@
 # Inference worker
 
+## Table of content
+- [Introduction](#introduction)
+- [Overall architecture](#overall-architecture)
+- [Project structure](#project-structure)
+1. [Model training Details](#1-model-training-details)
+   1. [Data preparation](#11-data-preparation)
+   2. [LoRA Fine-tuning](#12-lora-fine--tuning)
+2. [Implementing Details](#2-implementing-details)
+   1. [VM initial setup](#21-vm-initial-setup)
+   2. [Running the worker](#22-running-the-worker)
+
 ## Introduction
 As a key component of the Item Generation System, this inference worker is designed to consume messages from a RabbitMQ queue. It generates images based on the provided prompts and parameters, leveraging a fine-tuned LoRA with Stable Diffusion 1.5 model. 
 
@@ -31,37 +42,6 @@ As a key component of the Item Generation System, this inference worker is desig
 ├── requirements.txt      - Python dependencies
 └── setup_vm.sh           - Script to setup VM
 ```
-
-## Table of content
-- [Introduction](#introduction)
-- [Overall architecture](#overall-architecture)
-- [Project structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Environment Variables](#environment-variables)
-1. [Model training Details](#1-model-training-details)
-   1. [Data preparation](#11-data-preparation)
-   2. [LoRA Fine-tuning](#12-lora-fine--tuning)
-2. [Model serving Details](#2-model-serving-details)
-   1. [VM Setup](#21-vm-setup)
-   2. [Running the worker](#22-running-the-worker)
-
-## Prerequisites
-Before you begin, ensure you have the following installed:
-- Python 3.11
-- Uv
-- Docker and Docker compose
-- NVIDIA GPT with CUDA Toolkit 11.8
-- Access credentials for RabbitMQ, Google Cloud Storage, API Gateway
-
-## Environment Variables
-| Variable                  | Description                                                                 
-| ------------------------- | --------------------------------------------------------------------------- 
-| `RABBITMQ_HOST`           | The hostname or IP address of the RabbitMQ server.                          
-| `RABBITMQ_DEFAULT_USER`   | The username for RabbitMQ authentication.                                   
-| `RABBITMQ_DEFAULT_PASS`   | The password for RabbitMQ authentication.                                   
-| `API_GATEWAY_URL`         | The base URL of the API Gateway for status updates.                         
-| `GCS_BUCKET_NAME`         | The name of the Google Cloud Storage bucket to upload generated images to.  
-| `GOOGLE_APPLICATION_CREDENTIALS` | The path *inside the container* to the GCS key. Should be `/app/gcs_key.json`.
 
 
 ## 1. Model training Details
@@ -101,20 +81,24 @@ Example generation result:
    </p>
 
 
-## 2. Model serving Details
+## 2. Implementing Details
 To serve the fine-tuned model, the inference worker is deployed on a cloud VM with GPU acceleration.
 
-### 2.1 VM Setup
-- Provider: Vast.ai (for cost-effective GPU rent options).
-- Some specifications:
+### 2.1 VM initial setup
+- First, rent VM from vast.ai provider with at least, the following specifications:
+   + Template: Ubuntu VM 22.04 
    + GPU: NVIDIA RTX 3060
-   + OS template: Ubuntu 22.04
    + CUDA version: >= 11.8
 
-- Automated setup: to install required dependencies (CUDA Toolkit, Conda, etc.):
+- After accessed VM through ssh, create ```setup_vm.sh``` file with the same content in this repository to setup and install needed dependencies (essential packages, CUDA Toolkit 11.8, Anaconda) automatically:
 
    ```
    bash setup_vm.sh
+   ```
+
+- Open new terminal and install uv:
+   ```
+   pip install uv
    ```
 
 ### 2.2 Running the Inference worker
@@ -134,16 +118,18 @@ To serve the fine-tuned model, the inference worker is deployed on a cloud VM wi
 
    source .venv/bin/activate
 
-   uv pip install -r requirements.txt
+   uv pip install -r new_requirements.txt
    ```
 
-3. Configure environment variables
+3. Configure environment variables:
    Update export_env.sh with your own credentials then run:
    ```
    source export_env.sh
    ```
-4. Add GCS Service account key:
-   Place your GCS service account key JSON file in secrets/ with named gcs_key.json. 
+4. Create Google Cloud Storage bucket and Service account key:
+   Go to Google Cloud Console/Cloud Storage and create new bucket.
+   Go to Google Cloud Console/IAM & Admin and create a new Service account with Storage Object Admin role.
+   Go to Google Cloud Console/IAM & Admin/Service Accounts and generate key Json file with the above service account, named gcs-key.json and put into this repository.
 
 5. Download models:
    Run the download script to download Stable Diffusion 1.5 and fine-tuned LoRA:
@@ -163,7 +149,12 @@ There are 2 ways to run the inference worker:
 - Using Docker
    + Build the docker image:
    ```
-   docker build -t inference-worker:latest .
+   docker build -t sheehan19/inference-worker:latest .
+   ```
+
+   + Push docker image to dockerhub:
+   ```
+   docker push sheehan19/inference-worker:latest
    ```
 
    + Run the docker container:
@@ -179,7 +170,7 @@ There are 2 ways to run the inference worker:
       -e API_GATEWAY_URL=$API_GATEWAY_URL \
       -e GCS_BUCKET_NAME=$GCS_BUCKET_NAME \
       --name my-inference-worker \
-      inference-worker:latest
+      sheehan19/inference-worker:latest
    ```
 
 
