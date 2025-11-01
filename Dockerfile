@@ -33,6 +33,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 COPY inference.py .
-COPY gcs-key.json .
+COPY tracing.py .
 
 CMD ["python3", "inference.py"]

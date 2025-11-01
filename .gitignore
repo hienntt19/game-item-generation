@@ -13,7 +13,7 @@ wheels/
 .env
 
 # folders
-gcs_key.json
+gcs-key.json
 models/*
 !models/.gitkeep
 wandb/*

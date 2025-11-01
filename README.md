@@ -1,20 +1,22 @@
 # Inference worker
 
 ## Table of content
-- [Introduction](#introduction)
-- [Overall architecture](#overall-architecture)
-- [Project structure](#project-structure)
-1. [Model training Details](#1-model-training-details)
-   1. [Data preparation](#11-data-preparation)
-   2. [LoRA Fine-tuning](#12-lora-fine--tuning)
-2. [Implementing Details](#2-implementing-details)
-   1. [VM initial setup](#21-vm-initial-setup)
-   2. [Running the worker](#22-running-the-worker)
+1. [Introduction](#1-introduction)
+2. [Overall architecture](#2-overall-architecture)
+3. [Project structure](#3-project-structure)
+4. [Model training Details](#4-model-training-details)
+- 4.1. [Data preparation](#4-1-data-preparation)
+- 4.2. [LoRA Fine-tuning](#4-2-lora-fine--tuning)
+5. [Implementing Details](#5-implementing-details)
+- 5.1. [VM initial setup](#5-1-vm-initial-setup)
+- 5.2. [Running the worker](#5-2-running-the-worker)
+6. [Monitoring setup](#6-monitoring-setup)
+- 6.1 [Logging with ELK stack - Filebeat setup](#6-1-logging-with-elk-stack-filebeat---setup)
 
-## Introduction
+## 1. Introduction
 As a key component of the Item Generation System, this inference worker is designed to consume messages from a RabbitMQ queue. It generates images based on the provided prompts and parameters, leveraging a fine-tuned LoRA with Stable Diffusion 1.5 model. 
 
-## Overall architecture
+## 2. Overall architecture
 <p align="center">
   <img src="images/system_architecture.png" alt="Sample dataset">
 </p>
@@ -27,7 +29,7 @@ As a key component of the Item Generation System, this inference worker is desig
   + Upon successful completion, the status is updated to "Completed". The final image is uploaded to Google Cloud Storage (GCS), and its public URL is save to the database.
   + If an error occurs, the status is marked as "failed".
 
-## Project structure
+## 3. Project structure
 ```
 .
 ├── data_preparation      - Scripts for data crawling, processing and captioning
@@ -44,10 +46,10 @@ As a key component of the Item Generation System, this inference worker is desig
 ```
 
 
-## 1. Model training Details
+## 4. Model training Details
 The core objective of the model training phase was to fine-tune a Stable Diffusion 1.5 model using LoRA. The goal was to enable the model to generate items that emulate the distinct art style of the Tsuki Adventure game assets (cute, hand-drawn, pastel colors, thick outlines, etc.)
 
-### 1.1 Data preparation: Image crawling, processing and captioning
+### 4.1 Data preparation: Image crawling, processing and captioning
 There are 3 main steps in this phase:
 1. Image crawling
    1028 uniqe game asset images were scraped from the official Tsuki Adventure Fandom Wiki (https://tsuki-adventure.fandom.com/wiki/Items). This process was automated using python scipts leveraging Beautiful Soup and Selenium.
@@ -68,7 +70,7 @@ There are 3 main steps in this phase:
    <img src="images/data_captioning.png" alt="Sample caption">
    </p>
 
-### 1.2 LoRA Fine-tuning
+### 4.2 LoRA Fine-tuning
 The fine-tuning process was conducted within a Kaggle Notebook environment, utilizing a free T4 GPU instance.
    - Experiment tracking: Wandb was integrated for experiment tracking, which logging hyperparameters, training metrics, and final model artifacts.
    - Configuration: all settings and implementation details are in lora-fine-tune.ipynb notebook.
@@ -81,10 +83,10 @@ Example generation result:
    </p>
 
 
-## 2. Implementing Details
+## 5. Implementing Details
 To serve the fine-tuned model, the inference worker is deployed on a cloud VM with GPU acceleration.
 
-### 2.1 VM initial setup
+### 5.1 VM initial setup
 - First, rent VM from vast.ai provider with at least, the following specifications:
    + Template: Ubuntu VM 22.04 
    + GPU: NVIDIA RTX 3060
@@ -101,7 +103,7 @@ To serve the fine-tuned model, the inference worker is deployed on a cloud VM wi
    pip install uv
    ```
 
-### 2.2 Running the Inference worker
+### 5.2 Running the Inference worker
 
 1. Clone the repository:
    ```
@@ -127,9 +129,7 @@ To serve the fine-tuned model, the inference worker is deployed on a cloud VM wi
    source export_env.sh
    ```
 4. Create Google Cloud Storage bucket and Service account key:
-   Go to Google Cloud Console/Cloud Storage and create new bucket.
-   Go to Google Cloud Console/IAM & Admin and create a new Service account with Storage Object Admin role.
-   Go to Google Cloud Console/IAM & Admin/Service Accounts and generate key Json file with the above service account, named gcs-key.json and put into this repository.
+   - Go to **Google Cloud Console > IAM & Admin > Service Accounts** and generate new key json file with GCS service account, named gcs-key.json and put into this repository.
 
 5. Download models:
    Run the download script to download Stable Diffusion 1.5 and fine-tuned LoRA:
@@ -147,31 +147,55 @@ There are 2 ways to run the inference worker:
    ```
 
 - Using Docker
-   + Build the docker image:
+   + Pull docker image from dockerhub:
    ```
-   docker build -t sheehan19/inference-worker:latest .
-   ```
-
-   + Push docker image to dockerhub:
-   ```
-   docker push sheehan19/inference-worker:latest
+   docker pull sheehan19/inference-worker:latest
    ```
 
    + Run the docker container:
    ```
-   docker run -d \
+   docker run \
       --restart always \
       --gpus all \
       -v /home/user/game-item-generation/models:/app/models \
-      -v /home/user/secrets/gcs_key.json:/app/gcs_key.json \
-      -e RABBITMQ_HOST=$RABBITMQ_HOST \
-      -e RABBITMQ_DEFAULT_USER=$RABBITMQ_DEFAULT_USER \
-      -e RABBITMQ_DEFAULT_PASS=$RABBITMQ_DEFAULT_PASS \
-      -e API_GATEWAY_URL=$API_GATEWAY_URL \
-      -e GCS_BUCKET_NAME=$GCS_BUCKET_NAME \
+      -v /home/user/game-item-generation/gcs-key.json:/app/gcs-key.json \
+      --env-file ./.env \
+      --log-driver json-file \
+      --log-opt max-size=50m \
+      --log-opt max-file=5 \
       --name my-inference-worker \
       sheehan19/inference-worker:latest
    ```
 
+## 6. Monitoring setup
+### 6.1 Logging with ELK stack - Filebeat setup
+- Install Filebeat:
+```
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo gpg --dearmor -o /usr/share/keyrings/elastic-keyring.gpg
 
+sudo apt-get install apt-transport-https
+echo "deb [signed-by=/usr/share/keyrings/elastic-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main" | sudo tee /etc/apt/sources.list.d/elastic-8.x.list
+
+sudo apt-get update && sudo apt-get install filebeat
+
+```
+
+- Config /etc/filebeat/filebeat.yml
+
+- Check Filebeat:
+
+```
+sudo filebeat test config -e
+sudo filebeat test output -e
+
+```
+
+- Start Filebeat:
+
+```
+sudo systemctl enable filebeat
+sudo systemctl start filebeat
+
+sudo systemctl status filebeat
+```
 
