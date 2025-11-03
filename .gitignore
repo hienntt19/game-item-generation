@@ -23,4 +23,4 @@ inference_controlnet.py
 new_requirements.txt
 pyproject.toml
 utils.py
-
+node_exporter-1.7.0.linux-amd64/*

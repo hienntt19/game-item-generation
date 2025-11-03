@@ -88,7 +88,7 @@ To serve the fine-tuned model, the inference worker is deployed on a cloud VM wi
 
 ### 5.1 VM initial setup
 - First, rent VM from vast.ai provider with at least, the following specifications:
-   + Template: Ubuntu VM 22.04 
+   + Template: Ubuntu VM 22.04 (**!Remember to add port 9100 TCP when creating template**)
    + GPU: NVIDIA RTX 3060
    + CUDA version: >= 11.8
 
@@ -120,7 +120,7 @@ To serve the fine-tuned model, the inference worker is deployed on a cloud VM wi
 
    source .venv/bin/activate
 
-   uv pip install -r new_requirements.txt
+   uv pip install -r requirements.txt
    ```
 
 3. Configure environment variables:
@@ -180,7 +180,7 @@ sudo apt-get update && sudo apt-get install filebeat
 
 ```
 
-- Config /etc/filebeat/filebeat.yml
+- Config /etc/filebeat/filebeat.yml with the same content in filebeat_config/filebeat.yml, remember to change config corresponded to GKE cluster config
 
 - Check Filebeat:
 
@@ -199,3 +199,13 @@ sudo systemctl start filebeat
 sudo systemctl status filebeat
 ```
 
+### 6.2 Metrics with Prometheus+Grafana - Node Exporter setup
+- Install Node Exporter:
+```
+wget https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz
+tar xvfz node_exporter-1.7.0.linux-amd64.tar.gz
+cd node_exporter-1.7.0.linux-amd64
+
+```
+
+- Run Node Exporter with `./node_exporter`
