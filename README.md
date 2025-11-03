@@ -18,7 +18,7 @@ As a key component of the Item Generation System, this inference worker is desig
 
 ## 2. Overall architecture
 <p align="center">
-  <img src="images/system_architecture.png" alt="Sample dataset">
+  <img src="images/system-architecture.png" alt="System architecture">
 </p>
 
 **Main workflows:**
